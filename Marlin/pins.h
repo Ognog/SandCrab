@@ -480,6 +480,7 @@
 #if MOTHERBOARD == 33 || MOTHERBOARD == 34 || MOTHERBOARD == 35 || MOTHERBOARD == 77 || MOTHERBOARD == 67 || MOTHERBOARD == 68
 
   #define LARGE_FLASH true
+  #define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 
   #if MOTHERBOARD == 77
     #define X_STEP_PIN         54
@@ -530,15 +531,15 @@
     #define X_MIN_PIN           3
     #define X_MAX_PIN           2
 
-    #define Y_STEP_PIN         60
-    #define Y_DIR_PIN          61
-    #define Y_ENABLE_PIN       56
+    #define Z_STEP_PIN         60
+    #define Z_DIR_PIN          61
+    #define Z_ENABLE_PIN       56
     #define Y_MIN_PIN          14
     #define Y_MAX_PIN          15
 
-    #define Z_STEP_PIN         46
-    #define Z_DIR_PIN          48
-    #define Z_ENABLE_PIN       62
+    #define Y_STEP_PIN         46
+    #define Y_DIR_PIN          48
+    #define Y_ENABLE_PIN       62
     #define Z_MIN_PIN          18
     #define Z_MAX_PIN          19
 
@@ -577,6 +578,11 @@
     #define LED_PIN            13
   #endif
 
+  // Pins for CNC Mill Spindle On/Off control and Speed
+  // Reserve pin 10 for coolant control - future
+  #define SPINDLE_PIN          9
+  #define SPINDLE_SPD_PIN      8
+
   #if MOTHERBOARD == 33 || MOTHERBOARD == 35 || MOTHERBOARD == 67 || MOTHERBOARD == 68
     #define FAN_PIN            9 // (Sprinter config)
   #else
@@ -608,7 +614,7 @@
   #if MOTHERBOARD == 33 || MOTHERBOARD == 67
     #define HEATER_1_PIN       -1
   #else
-    #define HEATER_1_PIN       9    // EXTRUDER 2 (FAN On Sprinter)
+    #define HEATER_1_PIN       -1    // EXTRUDER 2 (FAN On Sprinter)
   #endif
 
 
@@ -645,7 +651,7 @@
     #if MOTHERBOARD == 77
       #define HEATER_BED_PIN     9    // BED
     #else
-      #define HEATER_BED_PIN     8    // BED
+      #define HEATER_BED_PIN     -1    // BED
     #endif
   #endif
 

@@ -243,29 +243,11 @@ int EtoPPressure=0;
 
 #ifdef FWRETRACT
   bool autoretract_enabled=false;
-  bool retracted[EXTRUDERS]={false
-    #if EXTRUDERS > 1
-    , false
-     #if EXTRUDERS > 2
-      , false
-     #endif
-  #endif
-  };
-  bool retracted_swap[EXTRUDERS]={false
-    #if EXTRUDERS > 1
-    , false
-     #if EXTRUDERS > 2
-      , false
-     #endif
-  #endif
-  };
-
+  bool retracted=false;
   float retract_length = RETRACT_LENGTH;
-  float retract_length_swap = RETRACT_LENGTH_SWAP;
   float retract_feedrate = RETRACT_FEEDRATE;
   float retract_zlift = RETRACT_ZLIFT;
   float retract_recover_length = RETRACT_RECOVER_LENGTH;
-  float retract_recover_length_swap = RETRACT_RECOVER_LENGTH_SWAP;
   float retract_recover_feedrate = RETRACT_RECOVER_FEEDRATE;
 #endif
 
@@ -488,8 +470,25 @@ void servo_init()
   #endif
 }
 
+void setup_spindlespdpin()
+{
+  #if defined(SPINDLE_SPD_PIN) && SPINDLE_SPD_PIN > -1
+    pinMode(SPINDLE_SPD_PIN,OUTPUT);
+    analogWrite(SPINDLE_SPD_PIN, 0);
+  #endif
+}
+
+void setup_spindlepin()
+{
+  #if defined(SPINDLE_PIN) && SPINDLE_PIN > -1
+    pinMode(SPINDLE_PIN,OUTPUT);
+    WRITE(SPINDLE_PIN,LOW);
+  #endif
+}
+
 void setup()
 {
+  setup_spindlespdpin();
   setup_killpin();
   setup_powerhold();
   MYSERIAL.begin(BAUDRATE);
@@ -1137,27 +1136,23 @@ void refresh_cmd_timeout(void)
 }
 
 #ifdef FWRETRACT
-  void retract(bool retracting, bool swapretract = false) {
-    if(retracting && !retracted[active_extruder]) {
+  void retract(bool retracting) {
+    if(retracting && !retracted) {
       destination[X_AXIS]=current_position[X_AXIS];
       destination[Y_AXIS]=current_position[Y_AXIS];
       destination[Z_AXIS]=current_position[Z_AXIS];
       destination[E_AXIS]=current_position[E_AXIS];
-      if (swapretract) {
-        current_position[E_AXIS]+=retract_length_swap/volumetric_multiplier[active_extruder];
-      } else {
-        current_position[E_AXIS]+=retract_length/volumetric_multiplier[active_extruder];
-      }
+      current_position[E_AXIS]+=retract_length/volumetric_multiplier[active_extruder];
       plan_set_e_position(current_position[E_AXIS]);
       float oldFeedrate = feedrate;
       feedrate=retract_feedrate*60;
-      retracted[active_extruder]=true;
+      retracted=true;
       prepare_move();
       current_position[Z_AXIS]-=retract_zlift;
       plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
       prepare_move();
       feedrate = oldFeedrate;
-    } else if(!retracting && retracted[active_extruder]) {
+    } else if(!retracting && retracted) {
       destination[X_AXIS]=current_position[X_AXIS];
       destination[Y_AXIS]=current_position[Y_AXIS];
       destination[Z_AXIS]=current_position[Z_AXIS];
@@ -1165,15 +1160,11 @@ void refresh_cmd_timeout(void)
       current_position[Z_AXIS]+=retract_zlift;
       plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
       //prepare_move();
-      if (swapretract) {
-        current_position[E_AXIS]-=(retract_length_swap+retract_recover_length_swap)/volumetric_multiplier[active_extruder]; 
-      } else {
-        current_position[E_AXIS]-=(retract_length+retract_recover_length)/volumetric_multiplier[active_extruder]; 
-      }
+      current_position[E_AXIS]-=(retract_length+retract_recover_length)/volumetric_multiplier[active_extruder]; 
       plan_set_e_position(current_position[E_AXIS]);
       float oldFeedrate = feedrate;
       feedrate=retract_recover_feedrate*60;
-      retracted[active_extruder]=false;
+      retracted=false;
       prepare_move();
       feedrate = oldFeedrate;
     }
@@ -1243,19 +1234,10 @@ void process_commands()
       break;
       #ifdef FWRETRACT
       case 10: // G10 retract
-       #if EXTRUDERS > 1
-        retracted_swap[active_extruder]=(code_seen('S') && code_value_long() == 1); // checks for swap retract argument
-        retract(true,retracted_swap[active_extruder]);
-       #else
         retract(true);
-       #endif
       break;
       case 11: // G11 retract_recover
-       #if EXTRUDERS > 1
-        retract(false,retracted_swap[active_extruder]);
-       #else
         retract(false);
-       #endif 
       break;
       #endif //FWRETRACT
     case 28: //G28 Home all Axis one at a time
@@ -1702,6 +1684,21 @@ void process_commands()
     }
     break;
 #endif
+
+#if defined(SPINDLE_PIN) && SPINDLE_PIN > -1
+    case 3: // M3 - Start the spindle clockwise at the S speed
+    case 4: // M4 - Start the spindle counterclockwise at the S speed
+    {
+      WRITE(SPINDLE_PIN,HIGH);
+    }  
+    break;  
+    case 5: // M5 - Stop the spindle
+    {
+      WRITE(SPINDLE_PIN,LOW);    
+    }
+    break;
+#endif    
+ 
     case 17:
         LCD_MESSAGEPGM(MSG_NO_MOVE);
         enable_x();
@@ -1711,7 +1708,7 @@ void process_commands()
         enable_e1();
         enable_e2();
       break;
-
+      
 #ifdef SDSUPPORT
     case 20: // M20 - list SD card
       SERIAL_PROTOCOLLNPGM(MSG_BEGIN_FILE_LIST);
@@ -2431,28 +2428,8 @@ void process_commands()
         int t= code_value() ;
         switch(t)
         {
-          case 0: 
-          {
-            autoretract_enabled=false;
-            retracted[0]=false;
-            #if EXTRUDERS > 1
-              retracted[1]=false;
-            #endif
-            #if EXTRUDERS > 2
-              retracted[2]=false;
-            #endif
-          }break;
-          case 1: 
-          {
-            autoretract_enabled=true;
-            retracted[0]=false;
-            #if EXTRUDERS > 1
-              retracted[1]=false;
-            #endif
-            #if EXTRUDERS > 2
-              retracted[2]=false;
-            #endif
-          }break;
+          case 0: autoretract_enabled=false;retracted=false;break;
+          case 1: autoretract_enabled=true;retracted=false;break;
           default:
             SERIAL_ECHO_START;
             SERIAL_ECHOPGM(MSG_UNKNOWN_COMMAND);
@@ -3186,7 +3163,12 @@ void process_commands()
       SERIAL_PROTOCOLLN((int)active_extruder);
     }
   }
-
+  else if(code_seen('S')) //Sx - Set Spindle Speed to x%
+  {
+  #if defined(SPINDLE_SPD_PIN) && SPINDLE_SPD_PIN > -1
+      analogWrite(SPINDLE_SPD_PIN, (int)code_value()*255/100);
+  #endif
+  }
   else
   {
     SERIAL_ECHO_START;
