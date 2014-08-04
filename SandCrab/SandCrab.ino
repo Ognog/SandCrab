@@ -1,8 +1,8 @@
 /* -*- c++ -*- */
 
 /*
-    Reprap firmware based on Sprinter and grbl.
- Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
+    Milling firmware based on Marlin, Sprinter and grbl.
+ Copyright (C) 2014 Ian Negus
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
  */
 
 /*
- This firmware is a mashup between Sprinter and grbl.
+ This firmware is a mashup between Marlin, Sprinter and grbl.
+  (https://github.com//ErikZalm/Marlin)
   (https://github.com/kliment/Sprinter)
   (https://github.com/simen/grbl/tree)
 
